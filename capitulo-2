@@ -1,0 +1,743 @@
+#### --------------------------------------------------------------------- ####
+#### ----------------- Estatisticas decritivas e modelo de predicao ------ ####
+#### ----------------- Segundo capitulo tese (Denisosn Silva) ------------ ####
+#### --------------------------------------------------------------------- ####
+
+# configuraçoes
+options(scipen=999)
+
+# limpando a area
+rm(list = ls())
+
+# carregando pacotes
+library(stringr)
+library(psych)
+library(stargazer)
+library(InformationValue)
+library(data.table)
+library(GGally)
+library(ggplot2)
+
+# carregando a base
+load(dados/base_tese_04_02_2019.Rda)
+
+#expertise
+# (tabela 2 da tese)
+tab1 <- table(eleitos$Presidente, eleitos$Partci_mesa_leg_ant)
+tab1.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$Partci_mesa_leg_ant)
+tab1.2 <- table(eleitos$PresidenteCCJ, eleitos$Partci_mesa_leg_ant)
+tab1.3 <- table(eleitos$PresidenteCFO, eleitos$Partci_mesa_leg_ant)
+
+tab2 <- table(eleitos$Presidente, eleitos$Dico_cargos_eletivos_anterior)
+tab2.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$Dico_cargos_eletivos_anterior)
+tab2.2 <- table(eleitos$PresidenteCCJ, eleitos$Dico_cargos_eletivos_anterior)
+tab2.3 <- table(eleitos$PresidenteCFO, eleitos$Dico_cargos_eletivos_anterior)
+
+tab3.1 <- table(eleitos$PresidenteCCJ, eleitos$expetCCJ)
+tab3.2 <- table(eleitos$PresidenteCFO, eleitos$expetCFO)
+
+
+# tabela 3 da tese
+tab8 <- describeBy(eleitos$QT_COMISSOES_anterior, eleitos$Presidente, mat = T)
+tab8$cargo <- "Presidente"
+
+tab8.1 <- describeBy(eleitos$QT_COMISSOES_anterior, eleitos$PresidenteCCJ, mat = T)
+tab8.1$cargo <- "Presidente CCJ"
+
+tab8.2 <- describeBy(eleitos$QT_COMISSOES_anterior, eleitos$PresidenteCFO, mat = T)
+tab8.2$cargo <- "Presidente CFO"
+
+tab8.3 <- describeBy(eleitos$QT_COMISSOES_anterior, eleitos$LIDER_PARTIDO_BLOCO, mat = T)
+tab8.3$cargo <- "Líder Partido/bloco"
+
+tab8f <- rbind(tab8, tab8.1, tab8.2, tab8.3)
+WriteXLS::WriteXLS(tab8f, "dados/desc_qt_comissoes_ant.xlsx")
+
+#seniority
+tab4 <- table(eleitos$Presidente, eleitos$incumbent)
+tab4.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$incumbent)
+tab4.2 <- table(eleitos$PresidenteCCJ, eleitos$incumbent)
+tab4.3 <- table(eleitos$PresidenteCFO, eleitos$incumbent)
+
+tab5 <- table(eleitos$Presidente, eleitos$SeniorityDico)
+tab5.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$SeniorityDico)
+tab5.2 <- table(eleitos$PresidenteCCJ, eleitos$SeniorityDico)
+tab5.3 <- table(eleitos$PresidenteCFO, eleitos$SeniorityDico)
+
+tab9 <- describeBy(eleitos$Qt_Mandatos_anterioes, eleitos$Presidente, mat = T)
+tab9$cargo <- "Presidente"
+
+tab9.1 <- describeBy(eleitos$Qt_Mandatos_anterioes, eleitos$PresidenteCCJ, mat = T)
+tab9.1$cargo <- "Presidente CCJ"
+
+tab9.2 <- describeBy(eleitos$Qt_Mandatos_anterioes, eleitos$PresidenteCFO, mat = T)
+tab9.2$cargo <- "Presidente CFO"
+
+tab9.3 <- describeBy(eleitos$Qt_Mandatos_anterioes, eleitos$LIDER_PARTIDO_BLOCO, mat = T)
+tab9.3$cargo <- "Líder Partido/bloco"
+
+tab9f <- rbind(tab9, tab9.1, tab9.2, tab9.3)
+WriteXLS::WriteXLS(tab9f, "dados/desc_qt_mandatos_ant.xlsx")
+
+
+# crdibilidade /leadade
+
+tab6 <- table(eleitos$Presidente, eleitos$Migrante)
+tab6.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$Migrante)
+tab6.2 <- table(eleitos$PresidenteCCJ, eleitos$Migrante)
+tab6.3 <- table(eleitos$PresidenteCFO, eleitos$Migrante)
+
+tab5 <- table(eleitos$Presidente, eleitos$Pertence_base_gov)
+
+tab7 <- table(eleitos$Presidente, eleitos$Org_par_anterior)
+tab7.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$Org_par_anterior)
+tab7.2 <- table(eleitos$PresidenteCCJ, eleitos$Org_par_anterior)
+tab7.3 <- table(eleitos$PresidenteCFO, eleitos$Org_par_anterior)
+
+tab11 <- table(eleitos$Presidente, eleitos$LIDER_PARTIDO_BLOCO_LEG_ANT)
+tab11.1 <- table(eleitos$LIDER_PARTIDO_BLOCO, eleitos$LIDER_PARTIDO_BLOCO_LEG_ANT)
+tab11.2 <- table(eleitos$PresidenteCCJ, eleitos$LIDER_PARTIDO_BLOCO_LEG_ANT)
+tab11.3 <- table(eleitos$PresidenteCFO, eleitos$LIDER_PARTIDO_BLOCO_LEG_ANT)
+
+# regras
+tab10 <- table(eleitos$Presidente, eleitos$Reeleição_presidente_mesa)
+
+
+# modelos predicao logistico
+
+# modelo com todas variaveis presidente
+modl1 <- glm(data = eleitos, 
+               Presidente ~ 
+               incumbent + 
+               Dico_cargos_eletivos_anterior + 
+               Qt_Mandatos_anterioes ++ 
+               Migrante +
+               Partci_mesa_leg_ant + 
+               Org_par_anterior + 
+               Pertence_base_gov + 
+               prop_cadeiras_partido + 
+               MAGNITUDE  +
+               Reeleição_presidente_mesa +
+               factor(SIGLA_UF)-1, binomial(link = "logit"))
+
+
+# modelo com todas variaveis mas só estados que tem todas informacoes 
+modl1.2 <- glm(data = eleitos[eleitos$SIGLA_UF %in% c("MG", "PE", "GO"), ],
+               Presidente ~ incumbent + 
+               Dico_cargos_eletivos_anterior + 
+               Qt_Mandatos_anterioes +
+               QT_COMISSOES_anterior + 
+               Migrante +
+               Partci_mesa_leg_ant + 
+               LIDER_PARTIDO_BLOCO_LEG_ANT + 
+               Org_par_anterior + 
+               Pertence_base_gov + 
+               prop_cadeiras_partido + 
+               MAGNITUDE  +
+               Reeleição_presidente_mesa,
+               binomial(link = "logit"))
+
+modl1.3 <- glm(data = eleitos[eleitos$SIGLA_UF %in% c("MG", "PE", "GO"), ],
+               Presidente ~ incumbent + 
+                 Dico_cargos_eletivos_anterior + 
+                 Qt_Mandatos_anterioes +
+                 Migrante +
+                 Partci_mesa_leg_ant + 
+                 Org_par_anterior + 
+                 Pertence_base_gov + 
+                 prop_cadeiras_partido + 
+                 MAGNITUDE  +
+                 Reeleição_presidente_mesa,
+               binomial(link = "logit"))
+
+modl1.4 <- glm(data = eleitos, Presidente ~ 
+                 incumbent +
+                 Partci_mesa_leg_ant + 
+                 Pertence_base_gov + 
+                 Reeleição_presidente_mesa +
+                 factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+# tabela 5 da tese
+stargazer(modl1, modl1.2, modl1.3, modl1.4, out = "presidencia.html", omit = "SIGLA_UF")
+
+### testando a cacidade preditiva
+
+depful1$predito_presimodl1 <- predict.glm(modl1, newdata = depful1, type = "response") # se.fit=TRUE
+tab <- na.omit(depful1[, c(98, 127)])
+tab$percentil_presimodl1 <- cut(tab$predito_presimodl1, quantile(tab$predito_presimodl1,  prob = seq(0, 1, length = 11)))
+table(tab$Presidente, tab$percentil_presimodl1)
+
+confusionMatrix(tab$Presidente, tab$predito_presimodl1)
+precision(actuals=tab$Presidente, predictedScores=tab$predito_presimodl1)
+
+depful1$predito_presimodl1.2 <- predict.glm(modl1.2, newdata = depful1, type = "response") # se.fit=TRUE
+tab2 <- na.omit(depful1[, c(98, 128)])
+tab2$percentil_presimodl1.2 <- cut(tab2$predito_presimodl1.2, unique(quantile(tab2$predito_presimodl1.2,  prob = seq(0, 1, length = 11))))
+table(tab2$Presidente, tab2$percentil_presimodl1.2)
+
+confusionMatrix(tab2$Presidente, tab2$predito_presimodl1.2)
+precision(actuals=tab2$Presidente, predictedScores=tab2$predito_presimodl1.2)
+
+
+depful1$predito_presimodl1.3 <- predict.glm(modl1.3, newdata = depful1, type = "response") # se.fit=TRUE
+tab3 <- na.omit(depful1[, c(98, 129)])
+tab3$percentil_presimodl1.3 <- cut(tab3$predito_presimodl1.3, quantile(tab3$predito_presimodl1.3,  prob = seq(0, 1, length = 11)))
+table(tab3$Presidente, tab3$percentil_presimodl1.3)
+
+confusionMatrix(tab3$Presidente, tab3$predito_presimodl1.3)
+precision(actuals=tab3$Presidente, predictedScores=tab3$predito_presimodl1.3)
+
+depful1$predito_presimodl1.4 <- predict.glm(modl1.4, newdata = depful1, type = "response") # se.fit=TRUE
+tab4 <- na.omit(depful1[, c(98, 130)])
+tab4$percentil_presimodl1.4 <- cut(tab4$predito_presimodl1.4, quantile(tab4$predito_presimodl1.4,  prob = seq(0, 1, length = 11)))
+table(tab4$Presidente, tab4$percentil_presimodl1.4)
+
+confusionMatrix(tab4$Presidente, tab4$predito_presimodl1.4)
+precision(actuals=tab4$Presidente, predictedScores=tab4$predito_presimodl1.4)
+
+
+####
+
+# comissoes 
+comissoes <- depful1[depful1$SIGLA_UF %in% c("GO", "MG", "MS", "PE", "PR"), ] 
+
+# ccj
+modl2ccj <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+               PresidenteCCJ ~  
+               expetCCJ +
+               incumbent + 
+               Dico_cargos_eletivos_anterior + 
+               Qt_Mandatos_anterioes +
+               QT_COMISSOES_anterior + 
+               Migrante +
+               Partci_mesa_leg_ant + 
+               #LIDER_PARTIDO_BLOCO_LEG_ANT + 
+               Org_par_anterior + 
+               Pertence_base_gov + 
+               prop_cadeiras_partido + 
+               MAGNITUDE +
+               factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+modl2ccj.2 <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+                PresidenteCCJ ~ 
+                  expetCCJ +
+                  incumbent + 
+                  Dico_cargos_eletivos_anterior + 
+                  SeniorityDico +
+                  QT_COMISSOES_anterior + 
+                  Migrante +
+                  Org_par_anterior + 
+                  Pertence_base_gov + 
+                  prop_cadeiras_partido + 
+                  MAGNITUDE  +
+                  factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+modl2ccj.3 <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+                  PresidenteCCJ ~ 
+                    expetCCJ +
+                    incumbent + 
+                    QT_COMISSOES_anterior +
+                    Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    MAGNITUDE  +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+# tabela 7 da tese
+stargazer(modl2ccj, modl2ccj.2, modl2ccj.3, out = "ccj.html", omit = "SIGLA_UF")
+
+# teste qualidade preditiva do modelo para ccj
+
+comissoes$predito_presimodl2ccj <- predict.glm(modl2ccj, newdata = comissoes, type = "response") # se.fit=TRUE
+tabCCJ <- na.omit(comissoes[, c(90, 131)])
+tabCCJ$percentil_presimodl2ccj <- cut(tabCCJ$predito_presimodl2ccj, quantile(tabCCJ$predito_presimodl2ccj,  prob = seq(0, 1, length = 11)))
+table(tabCCJ$PresidenteCCJ, tabCCJ$percentil_presimodl2ccj)
+
+confusionMatrix(tabCCJ$PresidenteCCJ, tabCCJ$predito_presimodl2ccj)
+precision(actuals=tabCCJ$PresidenteCCJ, tabCCJ$predito_presimodl2ccj, threshold = .5)
+
+comissoes$predito_presimodl2ccj.2 <- predict.glm(modl2ccj.2, newdata = comissoes, type = "response") # se.fit=TRUE
+tabCCJ2 <- na.omit(comissoes[, c(90, 132)])
+tabCCJ2$percentil_presimodl2ccj2 <- cut(tabCCJ2$predito_presimodl2ccj.2, quantile(tabCCJ2$predito_presimodl2ccj.2,  prob = seq(0, 1, length = 11)))
+table(tabCCJ2$PresidenteCCJ, tabCCJ2$percentil_presimodl2ccj2)
+
+confusionMatrix(tabCCJ2$PresidenteCCJ, tabCCJ2$predito_presimodl2ccj.2)
+precision(actuals=tabCCJ2$PresidenteCCJ, tabCCJ2$predito_presimodl2ccj.2, threshold = .5)
+
+
+comissoes$predito_presimodl2ccj.3 <- predict.glm(modl2ccj.3, newdata = comissoes, type = "response") # se.fit=TRUE
+tabCCJ3 <- na.omit(comissoes[, c(90, 133)])
+tabCCJ3$percentil_presimodl2ccj3 <- cut(tabCCJ3$predito_presimodl2ccj.3, quantile(tabCCJ3$predito_presimodl2ccj.3,  prob = seq(0, 1, length = 11)))
+table(tabCCJ3$PresidenteCCJ, tabCCJ3$percentil_presimodl2ccj3)
+
+confusionMatrix(tabCCJ3$PresidenteCCJ, tabCCJ3$predito_presimodl2ccj.3)
+precision(actuals=tabCCJ3$PresidenteCCJ, tabCCJ3$predito_presimodl2ccj.3, threshold = .5)
+
+## cfo
+modl2cfo <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+                PresidenteCFO ~  
+                  expetCFO +
+                  incumbent + 
+                  Dico_cargos_eletivos_anterior + 
+                  Qt_Mandatos_anterioes +
+                  QT_COMISSOES_anterior + 
+                  Migrante +
+                  Partci_mesa_leg_ant + 
+                  Org_par_anterior + 
+                  Pertence_base_gov + 
+                  prop_cadeiras_partido + 
+                  MAGNITUDE +
+                  factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+modl2cfo.2 <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+                  PresidenteCFO ~ 
+                    expetCFO +
+                    incumbent + 
+                    Dico_cargos_eletivos_anterior + 
+                    SeniorityDico +
+                    QT_COMISSOES_anterior + 
+                    Migrante +
+                    Org_par_anterior + 
+                    Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    MAGNITUDE  +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+modl2cfo.3 <- glm(data = comissoes[comissoes$Situacao == "ELEITO", ], 
+                  PresidenteCFO ~ 
+                    expetCFO +
+                    incumbent + 
+                    QT_COMISSOES_anterior +
+                    #Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    MAGNITUDE  +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+tabela 9 da tese
+stargazer(modl2cfo, modl2cfo.2, modl2cfo.3, out = "cfo.html", omit = "SIGLA_UF")
+
+# teste qualidade preditiva do modelo para cfo
+
+comissoes$predito_presimodl2cfo <- predict.glm(modl2cfo, newdata = comissoes, type = "response") # se.fit=TRUE
+tabcfo <- na.omit(comissoes[, c(91, 134)])
+tabcfo$percentil_presimodl2cfo <- cut(tabcfo$predito_presimodl2cfo, quantile(tabcfo$predito_presimodl2cfo,  prob = seq(0, 1, length = 11)))
+table(tabcfo$PresidenteCFO, tabcfo$percentil_presimodl2cfo)
+
+confusionMatrix(tabcfo$PresidenteCFO, tabcfo$predito_presimodl2cfo)
+precision(actuals=tabcfo$PresidenteCFO, tabcfo$predito_presimodl2cfo, threshold = .5)
+
+comissoes$predito_presimodl2cfo.2 <- predict.glm(modl2cfo.2, newdata = comissoes, type = "response") # se.fit=TRUE
+tabfco2 <- na.omit(comissoes[, c(91, 135)])
+tabfco2$percentil_presimodl2cfo2 <- cut(tabfco2$predito_presimodl2cfo.2, quantile(tabfco2$predito_presimodl2cfo.2,  prob = seq(0, 1, length = 11)))
+table(tabfco2$PresidenteCFO, tabfco2$percentil_presimodl2cfo2)
+
+confusionMatrix(tabfco2$PresidenteCFO, tabfco2$predito_presimodl2cfo.2)
+precision(actuals=tabfco2$PresidenteCFO, tabfco2$predito_presimodl2cfo.2, threshold = .5)
+
+
+comissoes$predito_presimodl2cfo.3 <- predict.glm(modl2cfo.3, newdata = comissoes, type = "response") # se.fit=TRUE
+tabcfo3 <- na.omit(comissoes[, c(91, 136)])
+tabcfo3$percentil_presimodl2cfo3 <- cut(tabcfo3$predito_presimodl2cfo.3, quantile(tabcfo3$predito_presimodl2cfo.3,  prob = seq(0, 1, length = 11)))
+table(tabcfo3$PresidenteCFO, tabcfo3$percentil_presimodl2cfo3)
+
+confusionMatrix(tabcfo3$PresidenteCFO, tabcfo3$predito_presimodl2cfo.3)
+precision(actuals=tabcfo3$PresidenteCFO, tabcfo3$predito_presimodl2cfo.3, threshold = .5)
+
+
+# lider 
+lider <- depful1[depful1$SIGLA_UF %in% c("GO", "PE", "MG"), ]
+
+modl3lider <- glm(data = lider[lider$Situacao == "ELEITO", ], 
+                  LIDER_PARTIDO_BLOCO ~  
+                  incumbent + 
+                  Dico_cargos_eletivos_anterior + 
+                  Qt_Mandatos_anterioes +
+                  QT_COMISSOES_anterior + 
+                  Migrante +
+                  Partci_mesa_leg_ant + 
+                  LIDER_PARTIDO_BLOCO_LEG_ANT + 
+                  Org_par_anterior + 
+                  Pertence_base_gov + 
+                  prop_cadeiras_partido + 
+                  MAGNITUDE +
+                  Reeleição_presidente_mesa +
+                  factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+modl3lider.2 <- glm(data = lider[lider$Situacao == "ELEITO", ], 
+                    LIDER_PARTIDO_BLOCO ~ 
+                    incumbent + 
+                    Dico_cargos_eletivos_anterior + 
+                    SeniorityDico +
+                    QT_COMISSOES_anterior + 
+                    Partci_mesa_leg_ant  +
+                    Migrante +
+                    Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    MAGNITUDE  +
+                    Reeleição_presidente_mesa +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+modl3lider.3 <- glm(data = lider[lider$Situacao == "ELEITO", ], 
+                      LIDER_PARTIDO_BLOCO ~ 
+                      #incumbent + 
+                      Dico_cargos_eletivos_anterior +
+                      SeniorityDico +
+                      #Migrante +
+                      Partci_mesa_leg_ant +
+                     # Pertence_base_gov + 
+                      prop_cadeiras_partido + 
+                      MAGNITUDE  +
+                      Reeleição_presidente_mesa +
+                      factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+# tabela 11 da tese
+stargazer(modl3lider, modl3lider.2, modl3lider.3, out = "lider.html", omit = "SIGLA_UF")
+
+# teste qualidade preditiva do modelo para lider
+
+
+lider$predito_presimodl3lider <- predict.glm(modl3lider, newdata = lider, type = "response") # se.fit=TRUE
+tablid <- na.omit(lider[, c(87, 131)])
+tablid$percentil_presimodl3lider <- cut(tablid$predito_presimodl3lider, quantile(tablid$predito_presimodl3lider,  prob = seq(0, 1, length = 11)))
+table(tablid$LIDER_PARTIDO_BLOCO, tablid$percentil_presimodl3lider)
+
+confusionMatrix(tablid$LIDER_PARTIDO_BLOCO, tablid$predito_presimodl3lider)
+precision(actuals=tablid$LIDER_PARTIDO_BLOCO, tablid$predito_presimodl3lider, threshold = .5)
+
+lider$predito_presimodl3lider.2 <- predict.glm(modl3lider.2, newdata = lider, type = "response") # se.fit=TRUE
+tablid2 <- na.omit(lider[, c(87, 132)])
+tablid2$percentil_presimodl3lider2 <- cut(tablid2$predito_presimodl3lider.2, quantile(tablid2$predito_presimodl3lider.2,  prob = seq(0, 1, length = 11)))
+table(tablid2$LIDER_PARTIDO_BLOCO, tablid2$percentil_presimodl3lider2)
+
+confusionMatrix(tablid2$LIDER_PARTIDO_BLOCO, tablid2$predito_presimodl3lider.2)
+precision(actuals=tablid2$LIDER_PARTIDO_BLOCO, tablid2$predito_presimodl3lider.2, threshold = .5)
+
+
+lider$predito_modl3lider.3 <- predict.glm(modl3lider.3, newdata = lider, type = "response") # se.fit=TRUE
+tablid3 <- na.omit(lider[, c(87, 133)])
+tablid3$percentil_presimodl2cfo3 <- cut(tablid3$predito_modl3lider.3, quantile(tablid3$predito_modl3lider.3,  prob = seq(0, 1, length = 11)))
+table(tablid3$LIDER_PARTIDO_BLOCO, tablid3$percentil_presimodl2cfo3)
+
+confusionMatrix(tablid3$LIDER_PARTIDO_BLOCO, tablid3$predito_modl3lider.3)
+precision(actuals=tablid3$LIDER_PARTIDO_BLOCO, tablid3$predito_modl3lider.3, threshold = .5)
+
+
+### cargos de destasque
+modl4cargo <- glm(data = eleitos, 
+                  Cargo_destaque ~  
+                    incumbent +
+                    Dico_cargos_eletivos_anterior +
+                    Qt_Mandatos_anterioes +
+                    Migrante +
+                    Partci_mesa_leg_ant + 
+                    Org_par_anterior + 
+                    Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    MAGNITUDE +
+                    Reeleição_presidente_mesa +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+modl4cargo2 <- glm(data = eleitos, 
+                  Cargo_destaque ~  
+                    incumbent + 
+                    Partci_mesa_leg_ant + 
+                    Pertence_base_gov + 
+                    prop_cadeiras_partido + 
+                    Reeleição_presidente_mesa +
+                    factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+
+
+set.seed(200)
+depful1$select <- sample(2, nrow(depful1), replace = T)
+treino <- depful1[depful1$select == 1, ]
+predicao <- depful1[depful1$select == 2, ]
+
+
+modl4cargo4 <- glm(data = treino, 
+                   Cargo_destaque ~  
+                     incumbent + 
+                     Qt_Mandatos_anterioes +
+                     Migrante +
+                     Partci_mesa_leg_ant + 
+                     Org_par_anterior + 
+                     Pertence_base_gov + 
+                     prop_cadeiras_partido + 
+                     Reeleição_presidente_mesa +
+                     MAGNITUDE +
+                     factor(SIGLA_UF)-1, binomial(link = "logit"))
+
+
+modl4cargo42 <- glm(data = treino, 
+                   Cargo_destaque ~  
+                     incumbent + 
+                     Dico_cargos_eletivos_anterior + 
+                     Migrante +
+                     Partci_mesa_leg_ant + 
+                     Org_par_anterior + 
+                     Pertence_base_gov + 
+                     prop_cadeiras_partido + 
+                     Reeleição_presidente_mesa +
+                     MAGNITUDE +
+                     factor(LEGISLATURA2) +
+                     factor(SIGLA_UF)-1, binomial(link = "logit"))
+
+
+
+modl4cargo51 <- glm(data = treino, 
+                   Cargo_destaque ~  
+                     incumbent + 
+                     #SeniorityDico +
+                     #Dico_cargos_eletivos_anterior + 
+                     #Migrante +
+                     Partci_mesa_leg_ant + 
+                     Org_par_anterior + 
+                     Pertence_base_gov + 
+                     prop_cadeiras_partido + 
+                     Reeleição_presidente_mesa +
+                     #MAGNITUDE +
+                     factor(SIGLA_UF) +
+                     factor(LEGISLATURA2) - 1, binomial(link = "logit"))
+
+modl4cargo6 <- glm(data = treino, 
+                   Cargo_destaque ~  
+                     incumbent + 
+                     #SeniorityDico +
+                     #Dico_cargos_eletivos_anterior + 
+                     #Migrante +
+                     Partci_mesa_leg_ant + 
+                     Org_par_anterior + 
+                     Pertence_base_gov + 
+                     prop_cadeiras_partido + 
+                     Reeleição_presidente_mesa +
+                     #MAGNITUDE +
+                     factor(SIGLA_UF) - 1, binomial(link = "logit"))
+
+# tabela 13 da tese
+stargazer(modl4cargo,modl4cargo2, 
+          modl4cargo4,modl4cargo42,
+          modl4cargo51, modl4cargo6,
+          out = "cargo2.html", omit = c("SIGLA_UF", "LEGISLATURA2"))
+
+
+depful1$predicaocargo <- predict.glm(modl4cargo, newdata = depful1, type = "response")
+depful1$predicaocargo2 <- predict.glm(modl4cargo2, newdata = depful1, type = "response")
+predicao$predicaocargo4 <- predict.glm(modl4cargo4, newdata = predicao, type = "response")
+predicao$predicaocargo42 <- predict.glm(modl4cargo42, newdata = predicao, type = "response")
+predicao$predicaocargo451 <- predict.glm(modl4cargo51, newdata = predicao, type = "response")
+predicao$predicaocargo46 <- predict.glm(modl4cargo6, newdata = predicao, type = "response")
+
+tabpred <- na.omit(depful1[, c(103, 132)])
+tabpred$percentil_predicaocargo <- cut(tabpred$predicaocargo, quantile(tabpred$predicaocargo,  prob = seq(0, 1, length = 11)))
+table(tabpred$Cargo_destaque, tabpred$percentil_predicaocargo)
+
+tabpred <- na.omit(depful1[, c(103, 133)])
+tabpred$percentil_predicaocargo2 <- cut(tabpred$predicaocargo2, quantile(tabpred$predicaocargo2,  prob = seq(0, 1, length = 11)))
+table(tabpred$Cargo_destaque, tabpred$percentil_predicaocargo2)
+
+tabpred4 <- na.omit(predicao[, c(103, 132)])
+tabpred4$percentil_predicaocargo <- cut(tabpred4$predicaocargo4, quantile(tabpred4$predicaocargo4,  prob = seq(0, 1, length = 11)))
+table(tabpred4$Cargo_destaque, tabpred4$percentil_predicaocargo)
+
+tabpred42 <- na.omit(predicao[, c(103, 133)])
+tabpred42$percentil_predicaocargo <- cut(tabpred42$predicaocargo42, quantile(tabpred42$predicaocargo42,  prob = seq(0, 1, length = 11)))
+table(tabpred42$Cargo_destaque, tabpred42$percentil_predicaocargo)
+
+tabpred451 <- na.omit(predicao[, c(103, 134)])
+tabpred451$percentil_predicaocargo <- cut(tabpred451$predicaocargo451, quantile(tabpred451$predicaocargo451,  prob = seq(0, 1, length = 11)))
+table(tabpred451$Cargo_destaque, tabpred451$percentil_predicaocargo)
+
+tabpred46 <- na.omit(predicao[, c(103, 135)])
+tabpred46$percentil_predicaocargo <- cut(tabpred46$predicaocargo46, quantile(tabpred46$predicaocargo46,  prob = seq(0, 1, length = 11)))
+table(tabpred46$Cargo_destaque, tabpred46$percentil_predicaocargo)
+
+
+# teste qualidade preditiva do modelo para cargo
+confusionMatrix(predicao$Cargo_destaque, predicao$predicaocargo46)
+precision(actuals=depful1$Cargo_destaque, depful1$predicaocargo)
+precision(actuals=depful1$Cargo_destaque, depful1$predicaocargo2)
+precision(actuals=predicao$Cargo_destaque, predicao$predicaocargo4)
+precision(actuals=predicao$Cargo_destaque, predicao$predicaocargo42)
+precision(actuals=predicao$Cargo_destaque, predicao$predicaocargo451)
+precision(actuals=predicao$Cargo_destaque, predicao$predicaocargo46)
+confusionMatrix(eleitos$Cargo_destaque, eleitos$predicaocargo)
+
+
+rguf <- function(uf){
+  
+base <- depful1[depful1$SIGLA_UF == uf, ]
+
+modluf <- glm(data = base, 
+              Cargo_destaque ~ 
+              incumbent + 
+               #Dico_cargos_eletivos_anterior + 
+               #Qt_Mandatos_anterioes +
+              # Migrante +
+               Partci_mesa_leg_ant + 
+               Org_par_anterior + 
+               Pertence_base_gov +
+               prop_cadeiras_partido +
+               factor(LEGISLATURA2) - 1
+             ,binomial(link = "logit"))
+
+resultado <- NULL
+for(i in unique(depful1$SIGLA_UF)){
+  base2 <- depful1[depful1$SIGLA_UF == i, ]
+  
+  base2$preditouf <- predict.glm(modluf, newdata = base2, type = "response")
+  
+  #confusionMatrix(base2$Cargo_destaque, base2$preditouf)
+  precisao <- precision(base2$Cargo_destaque, base2$preditouf)
+  
+  
+  tabpred1 <- na.omit(base2[, c(103, 134)])
+  tabpred1$percentil_predicaocargo1 <- cut(tabpred1$preditouf, unique(quantile(tabpred1$preditouf,  prob = seq(0, 1, length = 11))))
+  tot_10percen <- table(tabpred1$Cargo_destaque, tabpred1$percentil_predicaocargo1)[length(table(tabpred1$Cargo_destaque, tabpred1$percentil_predicaocargo1))]
+  real_car <- table(tabpred1$Cargo_destaque)[2]
+  
+  result <- data.frame(uf, uf_test = i, precisao, tot_10percen, real_car, prop_10 = tot_10percen / real_car)
+  
+  resultado <- rbind(resultado, result)
+}
+
+return(resultado)
+}
+
+predicao <- NULL
+for(i in unique(depful1$SIGLA_UF)){
+  pred <- rguf(i)
+  predicao <- rbind(predicao, pred)
+}
+
+# tabela 14 da tese
+predicao <- predicao[predicao$uf != predicao$uf_test, ]
+
+
+### graficos
+
+ggplot(data = predicao, aes(x = uf, y = precisao)) + geom_boxplot() +
+  geom_hline(yintercept = mean(predicao$precisao, na.rm = T), linetype = 2)+
+  theme_classic() +
+  labs(title = "Precisão predição por UF", y = "Precisão", x = "")
+
+
+ggplot(data = predicao, aes(x = uf, y = prop_10)) + geom_boxplot() +
+  geom_hline(yintercept = mean(predicao$prop_10, na.rm = T), linetype = 2)+
+  theme_classic() +
+  labs(title = "Proporção de casos no decil com maiores escores por UF", y = "Proporção", x = "")
+
+#rm(list = ls())
+
+ggcoef2 <- function(
+  x,
+  mapping = aes_string(y = "term", x = "estimate"),
+  exclud.term = NULL,
+  conf.int = TRUE,
+  conf.level = 0.95,
+  exponentiate = FALSE,
+  exclude_intercept = FALSE,
+  vline = TRUE,
+  vline_intercept = "auto",
+  vline_color = "gray50",
+  vline_linetype = "dotted",
+  vline_size = 1,
+  errorbar_color = "gray25",
+  errorbar_height = 0,
+  errorbar_linetype = "solid",
+  errorbar_size = .5,
+  sort = c("none", "ascending", "decending"),
+  ...
+) {
+  if (!is.data.frame(x)) {
+    #require_namespaces("broom")
+    x <- broom::tidy(
+      x,
+      conf.int = conf.int,
+      conf.level = conf.level,
+      exponentiate = exponentiate
+    )
+  }
+  if (!("term" %in% names(x))) {
+    stop("x doesn't contain a column names 'term'.")
+  }
+  if (!("estimate" %in% names(x))) {
+    stop("x doesn't contain a column names 'estimate'.")
+  }
+  if (exclude_intercept) {
+    x <- x[x$term != "(Intercept)", ]
+  }
+  
+  if (!is.null(exclud.term)){
+    x <- x[str_detect(x$term, exclud.term) == F, ]
+  }
+  
+  sort <- match.arg(sort)
+  if (sort != "none") {
+    x$term <- as.factor(x$term)
+    if (sort == "ascending") {
+      new_order <- order(x$estimate, decreasing = FALSE)
+    } else {
+      new_order <- order(x$estimate, decreasing = TRUE)
+    }
+    x$term <- as.character(x$term)
+    x$term <- factor(x$term, levels = x$term[new_order])
+  }
+  
+  p <- ggplot(x, mapping = mapping)
+  
+  if (vline) {
+    if (exponentiate) {
+      if (vline_intercept == "auto") {
+        vline_intercept <- 1
+      }
+      p <- p +
+        geom_vline(
+          xintercept = vline_intercept, color = vline_color,
+          linetype = vline_linetype, size = vline_size
+        ) +
+        scale_x_log10()
+    } else {
+      if (vline_intercept == "auto") {
+        vline_intercept <- 0
+      }
+      p <- p +
+        geom_vline(
+          xintercept = vline_intercept,
+          color = vline_color,
+          linetype = vline_linetype,
+          size = vline_size
+        )
+    }
+  }
+  if (conf.int & "conf.low" %in% names(x) & "conf.high" %in% names(x))
+    p <- p + geom_errorbarh(
+      aes_string(xmin = "conf.low", xmax = "conf.high"),
+      color = errorbar_color,
+      height = errorbar_height,
+      linetype = errorbar_linetype,
+      size = errorbar_size
+    )
+  p + geom_point(...)
+}
+
+# apresetacao 
+
+ggcoef2(modl1.4, exclud.term = "SIGLA_UF") + theme_classic() + labs(x = "ß estimado", y = "", title = "VD: Presidente da Mesa Diretora") + coord_flip()
+ggcoef2(modl2ccj.3, exclud.term = "SIGLA_UF") + theme_classic() + labs(x = "ß estimado", y = "", title = "VD: Presidente da CCJ") + coord_flip()
+ggcoef2(modl2cfo.3, exclud.term = "SIGLA_UF") + theme_classic() + labs(x = "ß estimado", y = "", title = "VD: Presidente da CFO") + coord_flip()
+ggcoef2(modl3lider, exclud.term = "SIGLA_UF") + theme_classic() + labs(x = "ß estimado", y = "", title = "VD: Liderança de Partido/bloco")
+ggcoef2(modl4cargo4, exclud.term = "SIGLA_UF") + theme_classic() + labs(x = "ß estimado", y = "", title = "VD: Cargo de Destaque")
+
+
+
